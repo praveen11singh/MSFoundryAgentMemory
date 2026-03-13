@@ -1,13 +1,17 @@
-
-from azure.ai.projects.aio import AIProjectClient
-from azure.ai.projects.models import MemoryStoreDefaultDefinition
 import asyncio
 import os
 from dotenv import load_dotenv
 from azure.core.exceptions import ResourceNotFoundError
-from azure.identity.aio import DefaultAzureCredential
+from azure.ai.projects.aio import AIProjectClient
+from azure.ai.projects.models import MemoryStoreDefaultDefinition
+from azure.identity.aio import ClientSecretCredential  
 
 load_dotenv()
+
+
+tenant_id = os.environ["AZURE_TENANT_ID"]
+client_id = os.environ["AZURE_CLIENT_ID"]
+client_secret = os.environ["AZURE_CLIENT_SECRET"]
 
 
 async def main() -> None:
@@ -15,11 +19,15 @@ async def main() -> None:
     endpoint = os.environ["AZURE_AI_PROJECT_ENDPOINT"]
 
     async with (
-        DefaultAzureCredential() as credential,
+        ClientSecretCredential(
+            tenant_id=tenant_id,
+            client_id=client_id,
+            client_secret=client_secret,
+        ) as credential,
         AIProjectClient(endpoint=endpoint, credential=credential) as project_client,
     ):
 
-        # Delete memory store, if it already exists
+        # Delete memory store if it already exists
         memory_store_name = "pk_memory_store"
         try:
             await project_client.beta.memory_stores.delete(memory_store_name)
@@ -50,7 +58,7 @@ async def main() -> None:
         )
         print(f"Updated: {updated_store.name} ({updated_store.id}): {updated_store.description}")
 
-        # List Memory Store
+        # List Memory Stores
         memory_stores = []
         async for store in project_client.beta.memory_stores.list(limit=10):
             memory_stores.append(store)
@@ -59,8 +67,8 @@ async def main() -> None:
             print(f"  - {store.name} ({store.id}): {store.description}")
 
         # Delete Memory Store
-        delete_response = await project_client.beta.memory_stores.delete(memory_store.name)
-        print(f"Deleted: {delete_response.deleted}")
+        # delete_response = await project_client.beta.memory_stores.delete(memory_store.name)
+        # print(f"Deleted: {delete_response.deleted}")
 
 
 if __name__ == "__main__":

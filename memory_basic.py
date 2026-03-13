@@ -1,17 +1,20 @@
-
+import asyncio
+import os
+from dotenv import load_dotenv
+from azure.core.exceptions import ResourceNotFoundError
+from azure.identity.aio import ClientSecretCredential 
 from azure.ai.projects.aio import AIProjectClient
 from azure.ai.projects.models import (
     MemoryStoreDefaultDefinition,
     MemoryStoreDefaultOptions,
     MemorySearchOptions,
 )
-import asyncio
-import os
-from dotenv import load_dotenv
-from azure.core.exceptions import ResourceNotFoundError
-from azure.identity.aio import DefaultAzureCredential
 
 load_dotenv()
+
+tenant_id = os.environ["AZURE_TENANT_ID"]
+client_id = os.environ["AZURE_CLIENT_ID"]
+client_secret = os.environ["AZURE_CLIENT_SECRET"]
 
 
 async def main() -> None:
@@ -19,12 +22,16 @@ async def main() -> None:
     endpoint = os.environ["AZURE_AI_PROJECT_ENDPOINT"]
 
     async with (
-        DefaultAzureCredential() as credential,
-        AIProjectClient(endpoint=endpoint, credential=credential) as project_client,
+       ClientSecretCredential(
+            tenant_id=tenant_id,
+            client_id=client_id,
+            client_secret=client_secret,
+        ) as credential,
+        AIProjectClient(endpoint=endpoint, credential=credential, allow_preview=True) as project_client,
     ):
 
         # Delete memory store, if it already exists
-        memory_store_name = "pk_memory_store"
+        memory_store_name = "pk1_memory_store"
         try:
             await project_client.beta.memory_stores.delete(memory_store_name)
             print(f"Memory store `{memory_store_name}` deleted")
@@ -54,15 +61,10 @@ async def main() -> None:
         scope = "user_123"
 
         # Add a memory to the memory store
-        user_message = {
-            "role": "user",
-            "content": "I prefer dark roast coffee and usually drink it in the morning",
-            "type": "message",
-        }
         update_poller = await project_client.beta.memory_stores.begin_update_memories(
             name=memory_store.name,
             scope=scope,
-            items=[user_message],  # Pass conversation items that you want to add to memory
+            items="I prefer dark roast coffee and usually drink it in the morning",  # Pass conversation items that you want to add to memory
             update_delay=0,  # Trigger update immediately without waiting for inactivity
         )
 
@@ -75,24 +77,23 @@ async def main() -> None:
             )
 
         # Retrieve memories from the memory store
-        query_message = {"role": "user", "content": "What are my coffee preferences?", "type": "message"}
         search_response = await project_client.beta.memory_stores.search_memories(
             name=memory_store.name,
             scope=scope,
-            items=[query_message],
+            items="What are my coffee preferences?",
             options=MemorySearchOptions(max_memories=5),
         )
         print(f"Found {len(search_response.memories)} memories")
         for memory in search_response.memories:
             print(f"  - Memory ID: {memory.memory_item.memory_id}, Content: {memory.memory_item.content}")
 
-        # # Delete memories for a specific scope
-        # await project_client.beta.memory_stores.delete_scope(name=memory_store.name, scope=scope)
-        # print(f"Deleted memories for scope '{scope}'")
+        # Delete memories for a specific scope
+        await project_client.beta.memory_stores.delete_scope(name=memory_store.name, scope=scope)
+        print(f"Deleted memories for scope '{scope}'")
 
-        # # Delete memory store
-        # await project_client.beta.memory_stores.delete(memory_store.name)
-        # print(f"Deleted memory store `{memory_store.name}`")
+        # Delete memory store
+        await project_client.beta.memory_stores.delete(memory_store.name)
+        print(f"Deleted memory store `{memory_store.name}`")
 
 
 if __name__ == "__main__":
