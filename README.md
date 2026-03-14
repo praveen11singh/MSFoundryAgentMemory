@@ -174,6 +174,4 @@ Issues and PRs are welcome! If you build an interesting memory pattern on top of
 
 ---
 
-## 📄 License
-
-MIT License — see [LICENSE](LICENSE) for details.
+License — see [LICENSE](LICENSE) for details.
